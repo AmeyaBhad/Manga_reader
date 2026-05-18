@@ -1,32 +1,26 @@
 # Dependencies
 node_modules/
-/.pnp
-.pnp.js
+client/node_modules/
+server/node_modules/
 
-# Environment variables
+# Environment variables - NEVER commit these
 .env
 .env.local
 .env.*.local
+server/.env
+client/.env
+client/.env.local
 
-# Database
+# Database - contains user data
 *.db
 *.sqlite
 *.sqlite3
+server/manga.db
 
-# Build
-/build
-/dist
-
-# Testing
-/coverage
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+# Build output
+client/build/
+/build/
+/dist/
 
 # Logs
 logs/
@@ -34,3 +28,20 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+/coverage
+
+# Claude internal
+.claude/
