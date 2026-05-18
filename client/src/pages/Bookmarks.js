@@ -1,131 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Bookmark, Trash2, ExternalLink } from 'lucide-react';
 import { bookmarkAPI } from '../api';
-import '../App.css';
+import { useAuth } from '../AuthContext';
 
 export default function Bookmarks() {
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    fetchBookmarks();
-  }, []);
+    if (!isAuthenticated) return;
+    bookmarkAPI.getAll().then(r => setBookmarks(r.data.data)).catch(console.error).finally(() => setLoading(false));
+  }, [isAuthenticated]);
 
-  const fetchBookmarks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await bookmarkAPI.getAll();
-      setBookmarks(res.data.data);
-    } catch (err) {
-      setError('Failed to load bookmarks');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const remove = async (id) => {
+    try { await bookmarkAPI.delete(id); setBookmarks(bookmarks.filter(b => b.id !== id)); } catch {}
   };
 
-  const removeBookmark = async (id) => {
-    try {
-      await bookmarkAPI.delete(id);
-      setBookmarks(bookmarks.filter(b => b.id !== id));
-    } catch (err) {
-      alert('Failed to remove bookmark');
-      console.error(err);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="container">
-        <div className="loading">
-          <div className="spinner"></div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  if (!isAuthenticated) return <div className="empty"><h3>Login to see bookmarks</h3><Link to="/login" style={{ color:'var(--accent2)' }}>Login</Link></div>;
+  if (loading) return <div className="loading"><div className="spinner" /></div>;
 
   return (
-    <div className="container">
-      <div style={{ padding: '2rem 0' }}>
-        <h1>Bookmarked Pages</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Pages you've bookmarked for later
-        </p>
-      </div>
-
-      {error && <div className="error-message">{error}</div>}
-
+    <div>
+      <h1 className="page-title" style={{ display:'flex', alignItems:'center', gap:'8px' }}><Bookmark size={22} /> Bookmarks</h1>
       {bookmarks.length === 0 ? (
-        <div className="empty-state">
-          <h2>No Bookmarks</h2>
-          <p>Bookmark pages while reading to access them later.</p>
-          <Link to="/history" className="btn btn-primary" style={{ marginTop: '1rem' }}>
-            View Reading History
-          </Link>
-        </div>
+        <div className="empty"><h3>No bookmarks yet</h3><p>Bookmark pages while reading</p></div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-          {bookmarks.map(bookmark => (
-            <div
-              key={bookmark.id}
-              style={{
-                background: 'var(--bg-primary)',
-                padding: '1rem',
-                borderRadius: '8px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem'
-              }}
-            >
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                {bookmark.cover_url && (
-                  <img
-                    src={bookmark.cover_url}
-                    alt={bookmark.title}
-                    style={{ width: '80px', height: '120px', objectFit: 'cover', borderRadius: '4px' }}
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/80x120?text=No+Cover';
-                    }}
-                  />
-                )}
-
-                <div style={{ flex: 1 }}>
-                  <Link
-                    to={`/manga/${bookmark.manga_id}`}
-                    style={{ textDecoration: 'none', color: 'var(--text-primary)', fontWeight: '600' }}
-                  >
-                    {bookmark.title}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:'12px' }}>
+          {bookmarks.map(b => (
+            <div key={b.id} style={{ background:'var(--bg2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'14px', display:'flex', gap:'12px' }}>
+              {b.cover_url && <img src={b.cover_url} alt={b.title} style={{ width:'56px', height:'80px', objectFit:'cover', borderRadius:'4px', flexShrink:0 }} onError={e => e.target.src='https://placehold.co/56x80/1a1a1a/666?text=?'} />}
+              <div style={{ flex:1, minWidth:0 }}>
+                <Link to={`/manga/${b.manga_id}`} style={{ fontWeight:600, color:'var(--text)', fontSize:'0.9rem', display:'block', marginBottom:'3px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.title}</Link>
+                <div style={{ fontSize:'0.8rem', color:'var(--text2)', marginBottom:'2px' }}>{b.chapter_title}</div>
+                <div style={{ fontSize:'0.75rem', color:'var(--text3)', marginBottom:'8px' }}>Page {b.page_number}</div>
+                <div style={{ display:'flex', gap:'6px' }}>
+                  <Link to={`/reader/${b.manga_id}/${b.chapter_id}`} className="btn-blue" style={{ padding:'5px 10px', borderRadius:'4px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:'4px' }}>
+                    <ExternalLink size={12} /> Continue
                   </Link>
-
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                    {bookmark.chapter_title}
-                  </div>
-
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                    Page {bookmark.page_number || 0}
-                  </div>
-
-                  <button
-                    onClick={() => removeBookmark(bookmark.id)}
-                    className="btn-secondary btn-small"
-                    style={{ marginTop: '0.5rem' }}
-                  >
-                    Remove
+                  <button onClick={() => remove(b.id)} className="btn-ghost" style={{ padding:'5px 10px', borderRadius:'4px', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:'4px', color:'var(--red)' }}>
+                    <Trash2 size={12} /> Remove
                   </button>
                 </div>
               </div>
-
-              <Link
-                to={`/reader/${bookmark.manga_id}/${bookmark.chapter_id}`}
-                className="btn btn-primary"
-                style={{ textAlign: 'center', marginTop: '0.5rem' }}
-              >
-                Continue Reading
-              </Link>
             </div>
           ))}
         </div>

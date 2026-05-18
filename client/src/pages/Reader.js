@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, Bookmark, BookmarkCheck, ChevronLeft } from 'lucide-react';
 import { chapterAPI, bookmarkAPI } from '../api';
 import { useAuth } from '../AuthContext';
-import '../App.css';
 
 export default function Reader() {
   const { mangaId, chapterId } = useParams();
@@ -14,210 +14,101 @@ export default function Reader() {
   const [error, setError] = useState(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [chapters, setChapters] = useState([]);
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
+  const [currentIdx, setCurrentIdx] = useState(0);
 
   useEffect(() => {
-    fetchChaptersAndPages();
+    setLoading(true); setError(null);
+    Promise.all([chapterAPI.getChapters(mangaId), chapterAPI.getPages(chapterId)])
+      .then(([chs, pg]) => {
+        const all = chs.data.data;
+        setChapters(all);
+        setCurrentIdx(all.findIndex(c => c.id === chapterId));
+        setPages(pg.data.pages);
+        setCurrentPage(1);
+      }).catch(() => setError('Failed to load chapter'))
+      .finally(() => setLoading(false));
   }, [mangaId, chapterId]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      saveReadingHistory();
-    }
-  }, [chapterId, currentPage]);
+    if (isAuthenticated && pages.length) chapterAPI.saveHistory(mangaId, chapterId, currentPage).catch(() => {});
+  }, [currentPage, chapterId]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      checkBookmark();
-    }
-  }, [chapterId, currentPage]);
+    if (!isAuthenticated) return;
+    bookmarkAPI.getByManga(mangaId).then(r => {
+      setIsBookmarked(r.data.data.some(b => b.chapter_id === chapterId && b.page_number === currentPage));
+    }).catch(() => {});
+  }, [chapterId, currentPage, isAuthenticated]);
 
-  const fetchChaptersAndPages = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const chaptersRes = await chapterAPI.getChapters(mangaId);
-      const allChapters = chaptersRes.data.data;
-      setChapters(allChapters);
-
-      const currentIndex = allChapters.findIndex(ch => ch.id === chapterId);
-      setCurrentChapterIndex(currentIndex);
-
-      const pagesRes = await chapterAPI.getPages(chapterId);
-      setPages(pagesRes.data.pages);
-      setCurrentPage(1);
-    } catch (err) {
-      setError('Failed to load chapter pages');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const goNext = () => {
+    if (currentPage < pages.length) setCurrentPage(p => p+1);
+    else if (currentIdx > 0) navigate(`/reader/${mangaId}/${chapters[currentIdx-1].id}`);
   };
-
-  const saveReadingHistory = async () => {
-    try {
-      await chapterAPI.saveHistory(mangaId, chapterId, currentPage);
-    } catch (err) {
-      console.error('Failed to save reading history:', err);
-    }
-  };
-
-  const checkBookmark = async () => {
-    try {
-      const res = await bookmarkAPI.getByManga(mangaId);
-      const isCurrentPageBookmarked = res.data.data.some(
-        bm => bm.chapter_id === chapterId && bm.page_number === currentPage
-      );
-      setIsBookmarked(isCurrentPageBookmarked);
-    } catch (err) {
-      console.error('Failed to check bookmark:', err);
-    }
+  const goPrev = () => {
+    if (currentPage > 1) setCurrentPage(p => p-1);
+    else if (currentIdx < chapters.length-1) navigate(`/reader/${mangaId}/${chapters[currentIdx+1].id}`);
   };
 
   const toggleBookmark = async () => {
-    if (!isAuthenticated) {
-      alert('Please login to bookmark pages');
-      return;
-    }
-
+    if (!isAuthenticated) return alert('Login required');
     try {
       if (isBookmarked) {
-        const res = await bookmarkAPI.getByManga(mangaId);
-        const bookmark = res.data.data.find(
-          bm => bm.chapter_id === chapterId && bm.page_number === currentPage
-        );
-        if (bookmark) {
-          await bookmarkAPI.delete(bookmark.id);
-          setIsBookmarked(false);
-        }
-      } else {
-        await bookmarkAPI.create(mangaId, chapterId, currentPage);
-        setIsBookmarked(true);
-      }
-    } catch (err) {
-      console.error('Failed to toggle bookmark:', err);
-    }
+        const r = await bookmarkAPI.getByManga(mangaId);
+        const bm = r.data.data.find(b => b.chapter_id === chapterId && b.page_number === currentPage);
+        if (bm) { await bookmarkAPI.delete(bm.id); setIsBookmarked(false); }
+      } else { await bookmarkAPI.create(mangaId, chapterId, currentPage); setIsBookmarked(true); }
+    } catch {}
   };
 
-  const goToNextPage = () => {
-    if (currentPage < pages.length) {
-      setCurrentPage(currentPage + 1);
-    } else if (currentChapterIndex > 0) {
-      const nextChapter = chapters[currentChapterIndex - 1];
-      navigate(`/reader/${mangaId}/${nextChapter.id}`);
-    }
-  };
-
-  const goToPreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    } else if (currentChapterIndex < chapters.length - 1) {
-      const prevChapter = chapters[currentChapterIndex + 1];
-      navigate(`/reader/${mangaId}/${prevChapter.id}`);
-    }
-  };
-
-  const changeChapter = (newChapterId) => {
-    navigate(`/reader/${mangaId}/${newChapterId}`);
-  };
-
-  if (loading) {
-    return (
-      <div className="reader-container">
-        <div className="loading">
-          <div className="spinner"></div>
-          <p>Loading chapter...</p>
-        </div>
+  if (loading) return <div className="reader-wrapper"><div className="loading"><div className="spinner" /><p>Loading...</p></div></div>;
+  if (error || !pages.length) return (
+    <div className="reader-wrapper">
+      <div className="loading" style={{ color:'var(--red)' }}>
+        {error || 'No pages found'}
+        <Link to={`/manga/${mangaId}`} style={{ color:'var(--accent2)', marginTop:'12px', display:'flex', alignItems:'center', gap:'4px', justifyContent:'center' }}>
+          <ChevronLeft size={16} /> Back to Manga
+        </Link>
       </div>
-    );
-  }
-
-  if (error || pages.length === 0) {
-    return (
-      <div className="container">
-        <div className="empty-state">
-          <h2>Error</h2>
-          <p>{error || 'No pages found for this chapter'}</p>
-          <button
-            onClick={() => navigate(`/manga/${mangaId}`)}
-            className="btn-primary"
-            style={{ marginTop: '1rem' }}
-          >
-            Back to Manga
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const currentImageUrl = pages[currentPage - 1]?.url;
+    </div>
+  );
 
   return (
-    <div className="reader-container">
-      <div style={{ maxWidth: '100%', display: 'flex', justifyContent: 'center' }}>
-        {currentImageUrl && (
-          <img
-            src={currentImageUrl}
-            alt={`Page ${currentPage}`}
-            className="reader-page"
-            onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/500x700?text=Failed+to+load';
-            }}
-          />
-        )}
+    <div className="reader-wrapper">
+      <div className="reader-topbar">
+        <Link to={`/manga/${mangaId}`} className="nav-btn" style={{ display:'flex', alignItems:'center', gap:'6px', fontSize:'0.85rem' }}>
+          <ChevronLeft size={15} /> Back
+        </Link>
+        <select className="chapter-select" value={chapterId} onChange={e => navigate(`/reader/${mangaId}/${e.target.value}`)}>
+          {chapters.map(c => <option key={c.id} value={c.id}>{c.title || `Chapter ${c.chapterNumber}`}</option>)}
+        </select>
+        <span className="page-counter">{currentPage} / {pages.length}</span>
+        <button onClick={toggleBookmark} className="nav-btn" style={{ display:'flex', alignItems:'center', gap:'6px', color: isBookmarked ? 'var(--yellow)' : undefined }}>
+          {isBookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+          {isBookmarked ? 'Saved' : 'Bookmark'}
+        </button>
       </div>
 
-      <div className="reader-controls">
-        <div className="page-info">
-          Page {currentPage} of {pages.length}
+      <div className="reader-image-container" onClick={e => { if (e.clientX > window.innerWidth/2) goNext(); else goPrev(); }}>
+        <img src={pages[currentPage-1]?.url} alt={`Page ${currentPage}`} className="reader-image"
+          style={{ cursor:'pointer' }}
+          onError={e => e.target.src='https://placehold.co/800x1200/0f0f0f/333?text=Failed+to+load'} />
+      </div>
+
+      <div className="reader-bottombar">
+        <button onClick={goPrev} disabled={currentPage===1 && currentIdx===chapters.length-1} className="nav-btn" style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+          <ArrowLeft size={15} /> Previous
+        </button>
+        <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+          {pages.slice(Math.max(0, currentPage-5), Math.min(pages.length, currentPage+4)).map((_, i) => {
+            const pageNum = Math.max(0, currentPage-5) + i + 1;
+            return (
+              <button key={pageNum} onClick={() => setCurrentPage(pageNum)}
+                style={{ width:'8px', height:'8px', borderRadius:'50%', border:'none', background: pageNum===currentPage ? 'var(--accent2)' : 'var(--bg4)', cursor:'pointer', padding:0 }} />
+            );
+          })}
         </div>
-
-        <select
-          value={chapterId}
-          onChange={(e) => changeChapter(e.target.value)}
-          style={{ padding: '0.5rem' }}
-        >
-          {chapters.map(ch => (
-            <option key={ch.id} value={ch.id}>
-              {ch.title || `Chapter ${ch.chapterNumber}`}
-            </option>
-          ))}
-        </select>
-
-        <div className="navigation-buttons">
-          <button
-            onClick={goToPreviousPage}
-            disabled={currentPage === 1 && currentChapterIndex === chapters.length - 1}
-            className="btn-primary-outline"
-            style={{ cursor: currentPage === 1 && currentChapterIndex === chapters.length - 1 ? 'not-allowed' : 'pointer' }}
-          >
-            ← Previous
-          </button>
-
-          <button
-            onClick={toggleBookmark}
-            className={isBookmarked ? 'btn-secondary' : 'btn-primary-outline'}
-            title="Bookmark this page"
-          >
-            {isBookmarked ? '📌 Bookmarked' : '📌 Bookmark'}
-          </button>
-
-          <button
-            onClick={goToNextPage}
-            disabled={currentPage === pages.length && currentChapterIndex === 0}
-            className="btn-primary-outline"
-            style={{ cursor: currentPage === pages.length && currentChapterIndex === 0 ? 'not-allowed' : 'pointer' }}
-          >
-            Next →
-          </button>
-        </div>
-
-        <button
-          onClick={() => navigate(`/manga/${mangaId}`)}
-          className="btn-primary-outline"
-        >
-          Back
+        <button onClick={goNext} disabled={currentPage===pages.length && currentIdx===0} className="nav-btn" style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+          Next <ArrowRight size={15} />
         </button>
       </div>
     </div>

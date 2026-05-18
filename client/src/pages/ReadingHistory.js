@@ -1,87 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { History, Search } from 'lucide-react';
 import { chapterAPI } from '../api';
-import '../App.css';
+import { useAuth } from '../AuthContext';
 
 export default function ReadingHistory() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    if (!isAuthenticated) return;
+    chapterAPI.getHistory().then(r => setHistory(r.data.data)).catch(console.error).finally(() => setLoading(false));
+  }, [isAuthenticated]);
 
-  const fetchHistory = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await chapterAPI.getHistory();
-      setHistory(res.data.data);
-    } catch (err) {
-      setError('Failed to load reading history');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const timeAgo = (d) => {
+    const diff = Math.floor((new Date() - new Date(d)) / 1000);
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
   };
 
-  if (loading) {
-    return (
-      <div className="container">
-        <div className="loading">
-          <div className="spinner"></div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  if (!isAuthenticated) return <div className="empty"><h3>Login to see history</h3><Link to="/login" style={{ color:'var(--accent2)' }}>Login</Link></div>;
+  if (loading) return <div className="loading"><div className="spinner" /></div>;
 
   return (
-    <div className="container">
-      <div style={{ padding: '2rem 0' }}>
-        <h1>Reading History</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          Continue reading where you left off
-        </p>
-      </div>
-
-      {error && <div className="error-message">{error}</div>}
-
+    <div>
+      <h1 className="page-title" style={{ display:'flex', alignItems:'center', gap:'8px' }}><History size={22} /> Reading History</h1>
       {history.length === 0 ? (
-        <div className="empty-state">
-          <h2>No Reading History</h2>
-          <p>You haven't read any manga yet.</p>
-          <Link to="/search" className="btn btn-primary" style={{ marginTop: '1rem' }}>
-            Start Reading
+        <div className="empty">
+          <h3>No history yet</h3>
+          <p>Start reading some manga!</p>
+          <Link to="/search" className="btn-blue" style={{ display:'inline-flex', alignItems:'center', gap:'6px', marginTop:'12px', padding:'8px 16px', borderRadius:'4px', textDecoration:'none' }}>
+            <Search size={15} /> Browse Manga
           </Link>
         </div>
       ) : (
         <div className="manga-grid">
-          {history.map(item => (
-            <Link
-              key={item.manga_id}
-              to={`/manga/${item.manga_id}`}
-              className="manga-card"
-            >
-              {item.cover_url && (
-                <img
-                  src={item.cover_url}
-                  alt={item.title}
-                  className="manga-cover"
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/180x250?text=No+Cover';
-                  }}
-                />
-              )}
+          {history.map(h => (
+            <Link to={`/manga/${h.manga_id}`} key={h.manga_id} className="manga-card">
+              {h.cover_url && <img src={h.cover_url} alt={h.title} className="manga-cover" onError={e => e.target.src='https://placehold.co/150x225/1a1a1a/666?text=No+Cover'} />}
               <div className="manga-info">
-                <div className="manga-title">{item.title}</div>
-                <div className="manga-meta">
-                  Page {item.page_number || 0}
-                </div>
-                <div className="manga-meta" style={{ fontSize: '0.75rem' }}>
-                  {new Date(item.last_read).toLocaleDateString()}
-                </div>
+                <div className="manga-title">{h.title}</div>
+                <div className="manga-meta">Page {h.page_number || 0}</div>
+                <div className="manga-meta" style={{ fontSize:'0.72rem' }}>{timeAgo(h.last_read)}</div>
               </div>
             </Link>
           ))}
