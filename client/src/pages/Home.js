@@ -21,12 +21,29 @@ function FeaturedCarousel({ items, usingRatings }) {
   const m = items[idx];
 
   return (
-    <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', marginBottom: 28, height: 260 }}>
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${m.cover})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(18px) brightness(0.35)', transform: 'scale(1.1)', transition: 'background-image 0.5s' }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(0,0,0,0.1), rgba(0,0,0,0.6))' }} />
-      <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 24, padding: 24, height: '100%' }}>
-        <Link to={`/manga/${m.id}`} style={{ flexShrink: 0 }}>
-          <img src={m.cover} alt={m.title} style={{ height: 210, width: 'auto', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.6)', display: 'block' }} onError={e => e.target.src = 'https://placehold.co/140x210/1a1a1a/666?text=No+Cover'} />
+    <div style={{
+      position: 'relative', borderRadius: 12, overflow: 'hidden', marginBottom: 28, height: 280,
+      boxShadow: 'var(--shadow)',
+      animation: 'fadeIn 0.4s ease'
+    }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        backgroundImage: `url(${m.cover})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+        filter: 'blur(22px) brightness(0.4)',
+        transform: 'scale(1.15)',
+        transition: 'background-image 0.6s ease, filter 0.4s'
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(to right, rgba(0,0,0,0.15), rgba(0,0,0,0.7))'
+      }} />
+      <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 24, padding: 28, height: '100%' }}>
+        <Link to={`/manga/${m.id}`} style={{ flexShrink: 0, transition: 'transform 0.2s' }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <img src={m.cover} alt={m.title} style={{ height: 225, width: 'auto', borderRadius: 8, boxShadow: '0 12px 32px rgba(0,0,0,0.6)', display: 'block' }} onError={e => e.target.src = 'https://placehold.co/140x210/1a1a1a/666?text=No+Cover'} />
         </Link>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: 0 }}>
           <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>

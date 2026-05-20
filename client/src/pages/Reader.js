@@ -193,7 +193,11 @@ export default function Reader() {
     return [pages[currentPage - 1]].filter(Boolean);
   };
 
-  const bgColor = prefs.darkBg ? '#0a0a0a' : '#e8e8e8';
+  const bgColor = prefs.darkBg ? '#0a0a0a' : '#f4f4f6';
+  const barBg = prefs.darkBg ? 'rgba(10,10,10,0.96)' : 'rgba(255,255,255,0.96)';
+  const barBorder = prefs.darkBg ? '#222' : '#e0e0e5';
+  const textColor = prefs.darkBg ? '#e0e0e0' : '#1a1a1a';
+  const textDim = prefs.darkBg ? '#888' : '#666';
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
@@ -221,18 +225,19 @@ export default function Reader() {
       <div ref={topRef} style={{
         position: prefs.stickyNav ? 'sticky' : 'relative',
         top: 0, zIndex: 100,
-        background: 'rgba(10,10,10,0.96)',
-        backdropFilter: 'blur(8px)',
-        borderBottom: '1px solid #2a2a2a',
-        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px',
+        background: barBg,
+        backdropFilter: 'blur(10px)',
+        borderBottom: `1px solid ${barBorder}`,
+        display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
         flexWrap: 'nowrap',
+        transition: 'background 0.2s, border-color 0.2s',
       }}>
-        <Link to={`/manga/${mangaId}`} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', flexShrink: 0, color: '#ccc' }}>
+        <Link to={`/manga/${mangaId}`} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', flexShrink: 0, color: textColor }}>
           <ChevronLeft size={14} /> Back
         </Link>
 
         {mangaInfo && (
-          <span style={{ color: '#888', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flexShrink: 1 }}>
+          <span style={{ color: textDim, fontSize: '0.82rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flexShrink: 1 }}>
             {mangaInfo.title}
           </span>
         )}
@@ -249,20 +254,20 @@ export default function Reader() {
         </select>
 
         {!isLongStrip && (
-          <span style={{ color: '#888', fontSize: '0.8rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          <span style={{ color: textDim, fontSize: '0.8rem', flexShrink: 0, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
             {currentPage}{isDouble && currentPage < pages.length ? `–${Math.min(currentPage + 1, pages.length)}` : ''} / {pages.length}
           </span>
         )}
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4, flexShrink: 0 }}>
-          <button onClick={toggleBookmark} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: isBookmarked ? 'var(--yellow)' : '#ccc' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexShrink: 0 }}>
+          <button onClick={toggleBookmark} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: isBookmarked ? 'var(--yellow)' : textColor }}>
             {isBookmarked ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
             {isBookmarked ? 'Saved' : 'Bookmark'}
           </button>
-          <button onClick={() => setShowPrefs(s => !s)} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: showPrefs ? 'var(--accent2)' : '#ccc' }}>
+          <button onClick={() => setShowPrefs(s => !s)} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: showPrefs ? 'var(--accent2)' : textColor }}>
             <Settings size={13} /> Prefs
           </button>
-          <button onClick={toggleFullscreen} className="nav-btn" title={`${isFullscreen ? 'Exit' : 'Enter'} Fullscreen (F)`} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: isFullscreen ? 'var(--accent2)' : '#ccc' }}>
+          <button onClick={toggleFullscreen} className="nav-btn" title={`${isFullscreen ? 'Exit' : 'Enter'} Fullscreen (F)`} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: isFullscreen ? 'var(--accent2)' : textColor }}>
             {isFullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
             {isFullscreen ? 'Exit' : 'Fullscreen'}
           </button>
@@ -398,19 +403,28 @@ export default function Reader() {
 
       {/* ── Bottom bar (non-longstrip) ── */}
       {!isLongStrip && (
-        <div style={{ background: 'rgba(10,10,10,0.96)', borderTop: '1px solid #2a2a2a', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <button onClick={navLeft} disabled={currentPage === 1 && currentIdx === chapters.length - 1} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.82rem', color: '#ccc' }}>
+        <div style={{ background: barBg, borderTop: `1px solid ${barBorder}`, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, backdropFilter: 'blur(10px)', transition: 'background 0.2s, border-color 0.2s' }}>
+          <button onClick={navLeft} disabled={currentPage === 1 && currentIdx === chapters.length - 1} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.82rem', color: textColor }}>
             <ArrowLeft size={14} /> {prefs.direction === 'rtl' ? 'Next' : 'Prev'}
           </button>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
             {pages.slice(Math.max(0, currentPage - 5), Math.min(pages.length, currentPage + 5)).map((_, i) => {
               const pn = Math.max(0, currentPage - 5) + i + 1;
+              const active = pn === currentPage;
               return (
-                <button key={pn} onClick={() => setCurrentPage(pn)} style={{ width: pn === currentPage ? 16 : 7, height: 7, borderRadius: 4, border: 'none', background: pn === currentPage ? 'var(--accent2)' : '#444', cursor: 'pointer', padding: 0, transition: 'all 0.2s' }} />
+                <button key={pn} onClick={() => setCurrentPage(pn)}
+                  style={{
+                    width: active ? 18 : 7, height: 7,
+                    borderRadius: 4, border: 'none',
+                    background: active ? 'var(--accent2)' : (prefs.darkBg ? '#444' : '#c8c8c8'),
+                    cursor: 'pointer', padding: 0,
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                />
               );
             })}
           </div>
-          <button onClick={navRight} disabled={currentPage === pages.length && currentIdx === 0} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.82rem', color: '#ccc' }}>
+          <button onClick={navRight} disabled={currentPage === pages.length && currentIdx === 0} className="nav-btn" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.82rem', color: textColor }}>
             {prefs.direction === 'rtl' ? 'Prev' : 'Next'} <ArrowRight size={14} />
           </button>
         </div>
