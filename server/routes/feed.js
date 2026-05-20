@@ -13,21 +13,30 @@ const getCoverUrl = (manga) => {
 router.get('/latest', async (req, res) => {
   try {
     const { limit = 24 } = req.query;
+    // Fetch more than needed so dedup still gives enough results
     const response = await axios.get(`${MANGADEX_API}/chapter`, {
-      params: { limit, offset: 0, includes: ['manga'], 'translatedLanguage[]': 'en',
+      params: { limit: 100, offset: 0, includes: ['manga'], 'translatedLanguage[]': 'en',
         order: { publishAt: 'desc' } }
     });
-    const chapters = response.data.data.map(ch => {
+
+    const seen = new Set();
+    const chapters = [];
+    for (const ch of response.data.data) {
       const mangaRel = ch.relationships?.find(r => r.type === 'manga');
-      return {
+      const mangaId = mangaRel?.id;
+      if (!mangaId || seen.has(mangaId)) continue; // skip duplicates
+      seen.add(mangaId);
+      chapters.push({
         id: ch.id,
         chapter: ch.attributes.chapter,
         title: ch.attributes.title,
         publishedAt: ch.attributes.publishAt,
-        mangaId: mangaRel?.id,
+        mangaId,
         mangaTitle: mangaRel?.attributes?.title?.en || Object.values(mangaRel?.attributes?.title || {})[0]
-      };
-    });
+      });
+      if (chapters.length >= parseInt(limit)) break;
+    }
+
     res.json({ data: chapters });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch latest updates' });
