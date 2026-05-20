@@ -35,6 +35,8 @@ export default function MangaDetail() {
   }, [id]);
 
   useEffect(() => {
+    // Public rating visible to all
+    usersAPI.getPublicRating(id).then(r => setRatingStats({ avgRating: r.data.avgRating, count: r.data.count })).catch(() => {});
     if (!isAuthenticated) return;
     favoriteAPI.isFavorite(id).then(r => setIsFav(r.data.isFavorite)).catch(() => {});
     followsAPI.getStatus(id).then(r => setFollowStatus(r.data.following ? r.data.status : null)).catch(() => {});
@@ -55,11 +57,14 @@ export default function MangaDetail() {
     setShowFollowMenu(false);
   };
 
+  const [hoverRating, setHoverRating] = useState(null);
+
   const rate = async (r) => {
-    if (!isAuthenticated) return alert('Login required');
+    if (!isAuthenticated) return;
+    if (r === 0) { setUserRating(null); return; }
     try {
-      await usersAPI.rateManga(id, r); setUserRating(r);
-      const res = await usersAPI.getMangaRating(id);
+      const res = await usersAPI.rateManga(id, r);
+      setUserRating(r);
       setRatingStats({ avgRating: res.data.avgRating, count: res.data.count });
     } catch {}
   };
@@ -139,22 +144,59 @@ export default function MangaDetail() {
             </button>
           </div>
 
-          <div className="rating-display">
-            <span style={{ color: 'var(--text2)', fontSize: '0.85rem' }}>Your rating:</span>
-            {[...Array(10)].map((_, i) => (
-              <button key={i+1} onClick={() => rate(i+1)} style={{
-                background: 'none', border: 'none',
-                color: userRating >= i+1 ? 'var(--yellow)' : 'var(--text3)',
-                cursor: 'pointer', padding: '2px', display:'flex', alignItems:'center'
-              }}>
-                <Star size={14} fill={userRating >= i+1 ? 'currentColor' : 'none'} />
-              </button>
-            ))}
-            {ratingStats.count > 0 && (
-              <span style={{ color: 'var(--text2)', fontSize: '0.85rem', marginLeft: '4px' }}>
-                {ratingStats.avgRating}/10 ({ratingStats.count})
-              </span>
-            )}
+          {/* ── Rating Widget ── */}
+          <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px 18px', marginTop: '16px', display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Global score */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '70px' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--yellow)', lineHeight: 1 }}>
+                {ratingStats.count > 0 ? ratingStats.avgRating : '—'}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text3)', marginTop: '2px' }}>/10</div>
+              <div style={{ display: 'flex', gap: '1px', marginTop: '4px' }}>
+                {[...Array(5)].map((_, i) => {
+                  const filled = ratingStats.avgRating / 2 > i + 0.75;
+                  const half = ratingStats.avgRating / 2 > i + 0.25 && !filled;
+                  return <Star key={i} size={10} fill={filled ? '#ffc107' : 'none'} color={filled || half ? '#ffc107' : 'var(--text3)'} />;
+                })}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text3)', marginTop: '3px' }}>{ratingStats.count} votes</div>
+            </div>
+
+            <div style={{ width: '1px', height: '60px', background: 'var(--border)' }} />
+
+            {/* User rating */}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text2)', marginBottom: '8px', fontWeight: 600 }}>
+                {isAuthenticated ? (userRating ? `Your rating: ${userRating}/10` : 'Rate this manga') : 'Login to rate'}
+              </div>
+              <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+                {[...Array(10)].map((_, i) => {
+                  const active = (hoverRating || userRating) >= i + 1;
+                  return (
+                    <button key={i + 1}
+                      onClick={() => rate(i + 1)}
+                      onMouseEnter={() => isAuthenticated && setHoverRating(i + 1)}
+                      onMouseLeave={() => setHoverRating(null)}
+                      disabled={!isAuthenticated}
+                      title={`Rate ${i + 1}/10`}
+                      style={{
+                        background: active ? 'var(--yellow)' : 'var(--bg4)',
+                        border: 'none', borderRadius: '4px',
+                        color: active ? '#000' : 'var(--text3)',
+                        width: '28px', height: '28px', cursor: isAuthenticated ? 'pointer' : 'default',
+                        fontWeight: 700, fontSize: '0.8rem', transition: 'all 0.15s',
+                        transform: active ? 'scale(1.1)' : 'scale(1)'
+                      }}
+                    >{i + 1}</button>
+                  );
+                })}
+              </div>
+              {userRating && (
+                <button onClick={() => rate(0)} style={{ background: 'none', border: 'none', color: 'var(--text3)', fontSize: '0.75rem', cursor: 'pointer', marginTop: '6px', padding: 0 }}>
+                  Clear rating
+                </button>
+              )}
+            </div>
           </div>
 
           {manga.tags?.length > 0 && (
