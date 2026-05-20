@@ -87,7 +87,9 @@ export const usersAPI = {
   getById: (id) => api.get(`/users/${id}`),
   updateProfile: (bio) => api.put('/users/profile', { bio }),
   rateManga: (mangaId, rating) => api.post(`/users/manga/${mangaId}/rate`, { rating }),
-  getMangaRating: (mangaId) => api.get(`/users/manga/${mangaId}/rating`)
+  getMangaRating: (mangaId) => api.get(`/users/manga/${mangaId}/rating`),
+  getPublicRating: (mangaId) => api.get(`/users/manga/${mangaId}/rating/public`),
+  getPopularThisWeek: (limit = 10) => api.get('/users/manga/popular-this-week', { params: { limit } })
 };
 
 export const feedAPI = {

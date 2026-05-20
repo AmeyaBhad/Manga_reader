@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   Home as HomeIcon, Rss, Search as SearchIcon, Sparkles, BookOpen,
   History, Heart, Bookmark, List, MessageSquare, Users, Bell,
-  User, LogOut, Shuffle, BookMarked, ChevronDown, Layers
+  User, LogOut, Shuffle, BookMarked, Layers, Sun, Moon
 } from 'lucide-react';
 import { AuthProvider, useAuth } from './AuthContext';
 import { notificationsAPI, feedAPI } from './api';
@@ -32,8 +32,41 @@ import UsersPage from './pages/Users';
 
 import './App.css';
 
+// ── Theme Context ──────────────────────────────────────────────
+const ThemeContext = createContext();
+
+function ThemeProvider({ children }) {
+  const [dark, setDark] = useState(() => localStorage.getItem('theme') !== 'light');
+
+  useEffect(() => {
+    if (dark) {
+      document.body.classList.remove('light-mode');
+    } else {
+      document.body.classList.add('light-mode');
+    }
+  }, [dark]);
+
+  const toggle = () => {
+    setDark(d => {
+      const next = !d;
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      return next;
+    });
+  };
+
+  return (
+    <ThemeContext.Provider value={{ dark, toggle }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+const useTheme = () => useContext(ThemeContext);
+
+// ── Header ─────────────────────────────────────────────────────
 function Header() {
   const { user, logout, isAuthenticated } = useAuth();
+  const { dark, toggle } = useTheme();
   const [query, setQuery] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
@@ -52,10 +85,6 @@ function Header() {
     if (query.trim()) navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   };
 
-  const handleRandom = async () => {
-    try { const r = await feedAPI.getRandom(); navigate(`/manga/${r.data.id}`); } catch {}
-  };
-
   return (
     <header className="header">
       <Link to="/" className="header-logo">
@@ -66,8 +95,8 @@ function Header() {
         <button type="submit"><SearchIcon size={16} /></button>
       </form>
       <div className="header-right">
-        <button onClick={handleRandom} className="btn-ghost icon-btn" title="Random manga">
-          <Shuffle size={16} /> Random
+        <button onClick={toggle} className="btn-ghost icon-btn" title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'} style={{ padding: '6px 10px' }}>
+          {dark ? <Sun size={16} /> : <Moon size={16} />}
         </button>
         {isAuthenticated ? (
           <>
@@ -93,13 +122,20 @@ function Header() {
   );
 }
 
+// ── Sidebar ────────────────────────────────────────────────────
 function Sidebar() {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
   const item = (to, Icon, label, end = false) => (
     <NavLink to={to} end={end} className={({ isActive }) => 'sidebar-item' + (isActive ? ' active' : '')}>
       <Icon size={16} className="icon" /> {label}
     </NavLink>
   );
+
+  const handleRandom = async () => {
+    try { const r = await feedAPI.getRandom(); navigate(`/manga/${r.data.id}`); } catch {}
+  };
 
   return (
     <nav className="sidebar">
@@ -109,6 +145,9 @@ function Sidebar() {
         {item('/feed', Rss, 'Feed')}
         {item('/search', SearchIcon, 'Advanced Search')}
         {item('/recently-added', Sparkles, 'Recently Added')}
+        <div onClick={handleRandom} className="sidebar-item" style={{ cursor: 'pointer' }}>
+          <Shuffle size={16} className="icon" /> Random
+        </div>
       </div>
       <div className="sidebar-divider" />
       {isAuthenticated && (
@@ -135,6 +174,7 @@ function Sidebar() {
   );
 }
 
+// ── Routes ─────────────────────────────────────────────────────
 function AppRoutes() {
   return (
     <Routes>
@@ -164,20 +204,23 @@ function AppRoutes() {
   );
 }
 
+// ── App ────────────────────────────────────────────────────────
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <div className="app-layout">
-          <Header />
-          <div className="app-body">
-            <Sidebar />
-            <main className="main-content">
-              <AppRoutes />
-            </main>
+      <ThemeProvider>
+        <AuthProvider>
+          <div className="app-layout">
+            <Header />
+            <div className="app-body">
+              <Sidebar />
+              <main className="main-content">
+                <AppRoutes />
+              </main>
+            </div>
           </div>
-        </div>
-      </AuthProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
